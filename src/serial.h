@@ -12,7 +12,8 @@ typedef struct Matrix {
 } Matrix;
 
 void init_matrix(Matrix *m, int nrow, int ncol);
-Matrix input_matrix(int nrow, int ncol, FILE *file);
+Matrix input_matrix(int nrow, int ncol);
+Matrix input_matrix_file(int nrow, int ncol, FILE *file);
 void print_matrix(Matrix *m);
 int get_matrix_datarange(Matrix *m);
 int supression_op(Matrix *kernel, Matrix *target, int row, int col);

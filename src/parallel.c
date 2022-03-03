@@ -37,7 +37,7 @@ int main(int argc, char* argv[]) {
 		}
 
 		fscanf(file, "%d %d", &kernel_row, &kernel_col);
-		kernel = input_matrix(kernel_row, kernel_col, file);
+		kernel = input_matrix_file(kernel_row, kernel_col, file);
 
 		fscanf(file, "%d %d %d", &num_targets, &target_row, &target_col);
 	}
@@ -56,45 +56,94 @@ int main(int argc, char* argv[]) {
 		for (int j = 0; j < kernel_col; j++) {
 			MPI_Bcast(&(kernel.mat[i][j]), 1, MPI_INT, ROOT, MPI_COMM_WORLD);
 		}
-	}
+	} // maybe change to multiple ints??
 
 	int size_per_process = num_targets / world_size; // size malloc per process
+	int remainder = num_targets % world_size; // remainder
+	pnum_targets = size_per_process;
 
-	if (world_rank != world_size - 1) {
-		pnum_targets = size_per_process;
-	} else {
-		pnum_targets = num_targets % world_size;
-		if (pnum_targets == 0) {
-			pnum_targets = size_per_process;
-		}
+	if ((remainder - world_rank) > 0) { // add 1 for as evenly distributed as possible
+		pnum_targets++;
 	}
 
 	arr_mat = (Matrix*)malloc(pnum_targets * sizeof(Matrix));
 
 	// distribute matrices from root to other processes
-	// calculate convolution in all processes
-	// gather all result from all process
-	// print result
 
+	if (world_rank == ROOT) { // this shit
+		for (int iter = 0; iter < num_targets; iter++) {
+			int move_to = iter % world_size; // where to send it to
+			Matrix move_matrix = input_matrix_file(target_row, target_col, file);
+			if (move_to == ROOT) {
+				arr_mat[iter / world_size] = move_matrix;
+			} else {
+				for (int i = 0; i < target_row; i++) {
+					for (int j = 0; j < target_col; j++) {
+						MPI_Send(&(move_matrix.mat[i][j]), 1, MPI_INT, move_to, ROOT, MPI_COMM_WORLD);
+					}
+				}
+			}
+		}
+	} else {
+		for (int iter = 0; iter < pnum_targets; iter++) {
+			init_matrix(&(arr_mat[iter]), target_row, target_col);
+			for (int i = 0; i < target_row; i++) {
+				for (int j = 0; j < target_col; j++) {
+					MPI_Recv(&(arr_mat[iter].mat[i][j]), 1, MPI_INT, ROOT, ROOT, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+				}
+			}
+		}
+	}
+
+	// int arr_range[pnum_targets];
+	int *arr_range = (int*)malloc(sizeof(int)*pnum_targets);
+
+	// calculate convolution in all processes
 	#pragma omp parallel num_threads(num_threads)
 	{
 		int nthreads, tid;
+
 		nthreads = omp_get_num_threads();
 		tid = omp_get_thread_num();
-		printf("Hello world from rank %d out of %d processors, from thread %d out of %d threads\n", world_rank, world_size, tid, nthreads);
-		// for (int i = 0; i < num_targets; i++) {
-			
-		// }
-		print_matrix(&kernel);
-		printf("\n");
+
+		for (int iter = tid; iter < pnum_targets; iter += nthreads) {
+			arr_mat[iter] = convolution(&kernel, &arr_mat[iter]);
+			arr_range[iter] = get_matrix_datarange(&arr_mat[iter]);
+		}
 	}
+
+	// gather all result from all process
+	if (world_rank == ROOT) {
+		int *all_range = (int*)malloc(sizeof(int)*num_targets);
+
+		for (int i = 0; i < num_targets; i++) {
+			int recv_from = i % world_size;
+			if (recv_from == 0) {
+				all_range[i] = arr_range[i / world_size];
+			} else {
+				MPI_Recv(&(all_range[i]), 1, MPI_INT, recv_from, ROOT, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+			}
+		}
+		merge_sort(all_range, 0, num_targets - 1);
+		int median = get_median(all_range, num_targets);
+		int floored_mean = get_floored_mean(all_range, num_targets);
+	} else {
+		for (int i = 0; i < pnum_targets; i++) {
+			MPI_Send(&(arr_range[i]), 1, MPI_INT, ROOT, ROOT, MPI_COMM_WORLD);
+		}
+	}
+
+	MPI_Finalize();
 
 	clock_t end = clock();
 	double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
 
-	MPI_Finalize();
-
 	if (world_rank == ROOT) {
+		printf("min:%d\nmax:%d\nmedian:%d\nmean:%d\n", 
+			all_range[0], 
+			all_range[num_targets - 1], 
+			median, 
+			floored_mean);
 		printf("time spent: %fs\n", time_spent);
 	}
 
