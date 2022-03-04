@@ -36,14 +36,14 @@ int main() {
 	int median = get_median(arr_range, num_targets);
 	int floored_mean = get_floored_mean(arr_range, num_targets);
 
-	clock_t end = clock();
-
 	// print the min, max, median, and floored mean of data range array
 	printf("min:%d\nmax:%d\nmedian:%d\nmean:%d\n", 
 			arr_range[0], 
 			arr_range[num_targets - 1], 
 			median, 
 			floored_mean);
+			
+	clock_t end = clock();
 	double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
 	printf("time spent: %f\n s", time_spent);
 	
