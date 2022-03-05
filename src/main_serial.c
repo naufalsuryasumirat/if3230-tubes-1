@@ -3,10 +3,6 @@
 #include <stdlib.h>
 #include "serial.h"
 
-#define NMAX 100
-#define DATAMAX 1000
-#define DATAMIN -1000
-
 // main() driver
 int main() {
 	int kernel_row, kernel_col, target_row, target_col, num_targets;

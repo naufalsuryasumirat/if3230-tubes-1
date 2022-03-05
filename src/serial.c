@@ -3,23 +3,7 @@
 #include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
-
-#define NMAX 100
-#define DATAMAX 1000
-#define DATAMIN -1000
-
-/* 
- * Struct Matrix
- *
- * Matrix representation consists of matrix data 
- * and effective dimensions 
- * */
-typedef struct Matrix {
-	int mat[NMAX][NMAX];	// Matrix cells
-	int row_eff;			// Matrix effective row
-	int col_eff;			// Matrix effective column
-} Matrix;
-
+#include "serial.h"
 
 /* 
  * Procedure init_matrix
