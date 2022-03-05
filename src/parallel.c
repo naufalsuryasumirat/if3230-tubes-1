@@ -104,11 +104,12 @@ int main(int argc, char* argv[]) {
 		}
 	}
 
+	// merge sort seluruh datarange matrix hasil konvolusi
+	merge_sort(arr_range, 0, pnum_targets - 1);
+
 	if (world_rank == MASTER) {
 		int min, min_idx, master_idx = 0, idx = 0;
 		int all_range[num_targets], targets_size[world_size], indices[world_size];
-
-		merge_sort(arr_range, 0, pnum_targets - 1);
 
 		for (int iter = 1; iter < world_size; iter++) {
 			MPI_Recv(&(targets_size[iter]), 1, MPI_INT, iter, MESSAGE_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
@@ -155,7 +156,6 @@ int main(int argc, char* argv[]) {
 	} else {
 		// merge sort arr_range untuk tiap proses sebelum dilakukan MPI_Send
 		// (sehingga dikirim hasil paling kecil terlebih dahulu)
-		merge_sort(arr_range, 0, pnum_targets - 1);
 		MPI_Send(&pnum_targets, 1, MPI_INT, MASTER, MESSAGE_TAG, MPI_COMM_WORLD);
 		for (int i = 0; i < pnum_targets; i++) {
 			MPI_Send(&(arr_range[i]), 1, MPI_INT, MASTER, MESSAGE_TAG, MPI_COMM_WORLD);
