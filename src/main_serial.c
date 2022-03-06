@@ -41,7 +41,7 @@ int main() {
 			
 	clock_t end = clock();
 	double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
-	printf("time spent: %f\n s", time_spent);
+	printf("time spent: %fs\n", time_spent);
 	
 	return 0;
 }
