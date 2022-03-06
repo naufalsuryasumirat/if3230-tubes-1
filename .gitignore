@@ -2,3 +2,11 @@ downloaded
 ref
 .vscode
 backup
+downloaded
+ref
+.vscode
+backup
+*.out
+*coba*
+*test*
+K03*
