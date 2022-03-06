@@ -14,14 +14,14 @@
 
 4. Berikut merupakan hasil variasi jumlah node OpenMPI yang berpartisipasi dan jumlah thread OpenMP yang digunakan
 
-| Node      | Thread      | Hasil Serial | Hasil Paralel |
-| --------- | ----------- | ------------ | ------------- |
-| 2         | 5           |  2           |               |
-| 2         | 16          |              |               |
-| 3         | 5           |              |               |
-| 3         | 16          |              |               |
-| 4         | 5           |              |               |
-| 4         | 16          |              |               |
+| Node      | Thread      | TC01         | TC02          | TC03         | TC04         |
+| --------- | ----------- | ------------ | ------------- | ------------ | ------------ |
+| 2         | 5           |              |               |              |              |
+| 2         | 16          |              |               |              |              |
+| 3         | 5           |              |               |              |              |
+| 3         | 16          |              |               |              |              |
+| 4         | 5           |              |               |              |              |
+| 4         | 16          |              |               |              |              |
 
 
 <!-- Variasikan jumlah node OpenMPI yang berpartisipasi dan jumlah thread OpenMP yang digunakan. Gunakan percobaan-percobaan dengan parameter berikut: -->
