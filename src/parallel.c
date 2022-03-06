@@ -11,6 +11,7 @@
 
 #define MASTER 0
 #define MESSAGE_TAG 6969
+#define TRACE(x) printf("\n---------------%d-----------------\n", x)
 
 // argv[1]: file path; argv[2]: 
 int main(int argc, char* argv[]) {
@@ -105,42 +106,95 @@ int main(int argc, char* argv[]) {
 	}
 
 	// merge sort seluruh datarange matrix hasil konvolusi
+	// untuk tiap proses sebelum dilakukan MPI_Send (untuk proses selain MASTER)
 	merge_sort(arr_range, 0, pnum_targets - 1);
 
 	if (world_rank == MASTER) {
-		int min, min_idx, master_idx = 0, idx = 0;
-		int all_range[num_targets], targets_size[world_size], indices[world_size];
+		// int min, min_idx, master_idx = 0, idx = 0;
+		// int all_range[num_targets], targets_size[world_size], indices[world_size];
 
-		for (int iter = 1; iter < world_size; iter++) {
-			MPI_Recv(&(targets_size[iter]), 1, MPI_INT, iter, MESSAGE_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-			MPI_Recv(&(indices[iter]), 1, MPI_INT, iter, MESSAGE_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+		// for (int iter = 1; iter < world_size; iter++) {
+		// 	MPI_Recv(&(targets_size[iter]), 1, MPI_INT, iter, MESSAGE_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+		// 	MPI_Recv(&(indices[iter]), 1, MPI_INT, iter, MESSAGE_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+		// }
+
+		// do {
+		// 	if (master_idx < pnum_targets) {
+		// 		min_idx = MASTER;
+		// 		min = arr_range[master_idx];
+		// 	} else {
+		// 		min_idx = 1;
+		// 		while (targets_size[min_idx] == 0) min_idx++;
+		// 		min = indices[min_idx];
+		// 	}
+
+		// 	for (int i = (min_idx + 1); i < world_size; i++) {
+		// 		if (targets_size[i] > 0 && indices[i] < min) {
+		// 			min = indices[i];
+		// 			min_idx = i;
+		// 		}
+		// 	}
+
+		// 	all_range[idx++] = min;
+		// 	if (min_idx == MASTER) {
+		// 		master_idx++;
+		// 	} else {
+		// 		targets_size[min_idx]--;
+		// 		if (targets_size[min_idx] > 0) {
+		// 			MPI_Recv(&(indices[min_idx]), 1, MPI_INT, min_idx, MESSAGE_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+		// 		}
+		// 	}
+		// } while (idx < num_targets);
+
+		// NEW CODE HERE
+		Matrix mat_sort;
+		int min_idx, min, idx = 0;
+		int all_range[num_targets], targets_size[world_size], indices[world_size];
+		init_matrix(&mat_sort, world_size, pnum_targets);
+
+		for (int init = 0; init < world_size; init++) indices[init] = 0;
+
+		targets_size[MASTER] = pnum_targets;
+		for (int init = 0; init < pnum_targets; init++) {
+			mat_sort.mat[MASTER][init] = arr_range[init];
 		}
 
+		// *mat_sort.mat[MASTER] = *arr_range;
+		for (int iter = 1; iter < world_size; iter++) {
+			MPI_Recv(&(targets_size[iter]), 1, MPI_INT, iter, MESSAGE_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+			MPI_Recv(&(mat_sort.mat[iter]), targets_size[iter], MPI_INT, iter, MESSAGE_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+		}
+
+		// for (int i = 0; i < world_rank; i++) {
+		// 	TRACE(123);
+		// 	for (int j = 0; j < targets_size[i]; j++) {
+		// 		printf("%d,", mat_sort.mat[i][j]);
+		// 	}
+		// 	TRACE(123);
+		// }
+
 		do {
-			if (master_idx < pnum_targets) {
-				min = arr_range[master_idx];
-				min_idx = MASTER;
-			} else {
-				min_idx = 1;
-				while (targets_size[min_idx] == 0) min_idx++;
-				min = indices[min_idx];
-			}
-			for (int i = 1; i < world_size; i++) {
-				if (targets_size[i] > 0 && indices[i] < min) {
-					min = indices[i];
+			min_idx = MASTER;
+			while (targets_size[min_idx] == 0) min_idx++;
+			min = mat_sort.mat[min_idx][indices[min_idx]];
+
+			for (int i = (min_idx + 1); i < world_size; i++) {
+				if (targets_size[i] > 0 && mat_sort.mat[i][indices[i]] < min) {
+					min = mat_sort.mat[i][indices[i]];
 					min_idx = i;
 				}
 			}
 			all_range[idx++] = min;
-			if (min_idx == MASTER) {
-				master_idx++;
-			} else {
-				targets_size[min_idx]--;
-				if (targets_size[min_idx] > 0) {
-					MPI_Recv(&(indices[min_idx]), 1, MPI_INT, min_idx, MESSAGE_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-				}
-			}
+			targets_size[min_idx]--;
+			indices[min_idx]++;
 		} while (idx < num_targets);
+
+		// TRACE(1);
+		// for (int i = 0; i < num_targets; i++) {
+		// 	printf("%d,", all_range[i]);
+		// }
+		// TRACE(1);
+		// NEW CODE ENDS HERE
 
 		int median = get_median(all_range, num_targets);
 		int floored_mean = get_floored_mean(all_range, num_targets);
@@ -154,12 +208,20 @@ int main(int argc, char* argv[]) {
 		double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
 		printf("time spent: %fs\n", time_spent);
 	} else {
-		// merge sort arr_range untuk tiap proses sebelum dilakukan MPI_Send
-		// (sehingga dikirim hasil paling kecil terlebih dahulu)
+		// setelah di-sort dikirim hasil paling kecil hingga paling besar
+		// MPI_Send(&pnum_targets, 1, MPI_INT, MASTER, MESSAGE_TAG, MPI_COMM_WORLD);
+		// for (int i = 0; i < pnum_targets; i++) {
+		// 	MPI_Send(&(arr_range[i]), 1, MPI_INT, MASTER, MESSAGE_TAG, MPI_COMM_WORLD);
+		// }
+
+		// TRACE(world_rank*100);
+		// for (int i = 0; i < pnum_targets; i++) {
+		// 	printf("%d, ", arr_range[i]);
+		// }
+		// TRACE(world_rank*100);
+
 		MPI_Send(&pnum_targets, 1, MPI_INT, MASTER, MESSAGE_TAG, MPI_COMM_WORLD);
-		for (int i = 0; i < pnum_targets; i++) {
-			MPI_Send(&(arr_range[i]), 1, MPI_INT, MASTER, MESSAGE_TAG, MPI_COMM_WORLD);
-		}
+		MPI_Send(&(arr_range), pnum_targets, MPI_INT, MASTER, MESSAGE_TAG, MPI_COMM_WORLD);
 	}
 
 	MPI_Finalize();
